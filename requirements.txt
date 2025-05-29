@@ -1,0 +1,4 @@
+PyQt6==6.6.1
+python-docx==0.8.11
+pywin32==306
+pyinstaller==6.3.0 
