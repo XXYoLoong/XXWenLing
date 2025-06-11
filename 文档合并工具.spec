@@ -2,10 +2,10 @@
 
 
 a = Analysis(
-    ['document_merger.py'],
+    ['ui_main.py'],
     pathex=[],
     binaries=[],
-    datas=[('README.md', '.')],
+    datas=[('README.md', '.'), ('assets', 'assets')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

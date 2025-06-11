@@ -9,12 +9,13 @@ def create_installer():
     
     # 首先使用PyInstaller打包程序
     PyInstaller.__main__.run([
-        'document_merger.py',  # 主程序文件
+        'ui_main.py',  # 主程序文件
         '--name=文档合并工具',  # 生成的exe名称
         '--onefile',  # 打包成单个exe文件
         '--noconsole',  # 不显示控制台窗口
         '--clean',  # 清理临时文件
         '--add-data=README.md;.',  # 添加说明文档
+        '--add-data=assets;assets',  # 添加资源文件
     ])
     
     # 创建安装程序脚本
@@ -49,6 +50,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "dist\\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "assets\\*"; DestDir: "{app}\\assets"; Flags: ignoreversion recursesubdirs
 
 [Icons]
 Name: "{group}\\{#MyAppName}"; Filename: "{app}\\{#MyAppExeName}"
