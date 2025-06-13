@@ -1,0 +1,37 @@
+{
+  "测试格式1": {
+    "name": "测试格式1",
+    "rules": {
+      "title": {
+        "type": "position",
+        "position": 0
+      },
+      "subtitle": {
+        "type": "position",
+        "position": 1
+      },
+      "body": {
+        "type": "default"
+      }
+    },
+    "formats": {
+      "title": {
+        "font": "黑体",
+        "size": 26,
+        "alignment": "居中"
+      },
+      "subtitle": {
+        "font": "宋体",
+        "size": 16,
+        "alignment": "右对齐"
+      },
+      "body": {
+        "font": "仿宋",
+        "size": 12,
+        "alignment": "左对齐",
+        "indent": 2.0,
+        "line_spacing": 28
+      }
+    }
+  }
+}
