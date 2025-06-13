@@ -235,4 +235,53 @@ DocTask.update_status(task_id, 'success')
   ```
 
 ---
+如需进一步扩展数据库功能、日志类型或性能分析，请参考`database/models.py`和`database/init_db.py`，或联系开发者获取更多示例。
+
+## 数据库写入测试流程
+
+本节提供一套完整的数据库写入验证流程，帮助你确认各功能是否已成功写入数据库。
+
+### 1. 测试模板写入
+- **操作前查询：**
+  ```sql
+  SELECT * FROM format_templates;
+  ```
+- **程序操作：**
+  - 启动程序，注册/登录。
+  - 进入"文档格式化"界面，点击"新建模板"，填写信息并保存。
+- **操作后查询：**
+  ```sql
+  SELECT * FROM format_templates ORDER BY created_at DESC;
+  SELECT * FROM system_logs WHERE module='format_templates' ORDER BY created_at DESC;
+  ```
+- **预期结果：**
+  - 新增模板数据出现在`format_templates`表。
+  - 操作日志写入`system_logs`。
+
+### 2. 测试合并任务写入
+- **操作前查询：**
+  ```sql
+  SELECT * FROM doc_tasks WHERE task_type='merge' ORDER BY created_at DESC;
+  SELECT * FROM task_logs ORDER BY created_at DESC;
+  SELECT * FROM performance_logs ORDER BY created_at DESC;
+  ```
+- **程序操作：**
+  - 在主界面进入"文档合并"，选择目录、输入文件名，点击"开始合成"。
+- **操作后查询：**
+  ```sql
+  SELECT * FROM doc_tasks WHERE task_type='merge' ORDER BY created_at DESC;
+  SELECT * FROM task_logs WHERE log_type IN ('progress','info','error') ORDER BY created_at DESC;
+  SELECT * FROM performance_logs WHERE operation='merge' ORDER BY created_at DESC;
+  ```
+- **预期结果：**
+  - 新增合并任务、进度日志、性能日志。
+
+### 3. 测试格式化任务写入
+- **操作前查询：**
+  ```sql
+  SELECT * FROM doc_tasks WHERE task_type='format' ORDER BY created_at DESC;
+  SELECT * FROM task_logs ORDER BY created_at DESC;
+  SELECT * FROM performance_logs ORDER BY created_at DESC;
+  ```
+- **程序操作：**
 如需进一步扩展数据库功能、日志类型或性能分析，请参考`database/models.py`和`database/init_db.py`，或联系开发者获取更多示例。 
