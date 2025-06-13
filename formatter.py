@@ -5,9 +5,12 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 import json
 import re
 from docx.oxml.ns import qn
+from database.models import DocTask, TaskLog, PerformanceLog
+from datetime import datetime
 
 class DocumentFormatter:
-    def __init__(self):
+    def __init__(self, user_id=None):
+        self.user_id = user_id
         self.templates = {}
         self.current_template = None
         self.load_templates()
@@ -41,9 +44,13 @@ class DocumentFormatter:
             
     def set_current_template(self, name):
         """设置当前使用的模板"""
-        if name in self.templates:
-            self.current_template = self.templates[name]
-            return True
+        from database.models import FormatTemplate
+        ft = FormatTemplate()
+        templates = ft.get_user_templates(self.user_id)
+        for t in templates:
+            if t['name'] == name:
+                self.current_template = json.loads(t['config'])
+                return True
         return False
         
     def classify_paragraph(self, paragraph, rules, para_index=1):
@@ -195,6 +202,14 @@ class DocumentFormatter:
         total_files = len(file_list)
         success_count = 0
         failed_files = []
+        # 创建数据库任务
+        task_model = DocTask()
+        task_name = f"批量格式化_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        output_path = output_dir or ''
+        task_id = task_model.create(self.user_id, 'format', task_name, '', output_path, None)
+        log_model = TaskLog()
+        perf_model = PerformanceLog()
+        start_time = datetime.now()
         for i, doc_path in enumerate(file_list):
             try:
                 if output_dir:
@@ -205,10 +220,20 @@ class DocumentFormatter:
                     progress_callback(int((i + 1) / total_files * 100))
                 if status_callback:
                     status_callback(f"正在处理: {os.path.basename(doc_path)}")
+                log_model.add_log(task_id, 'progress', f"正在处理: {os.path.basename(doc_path)}")
                 self.format_document(doc_path, output_path)
                 success_count += 1
             except Exception as e:
                 failed_files.append((os.path.basename(doc_path), str(e)))
+                log_model.add_log(task_id, 'error', f"处理失败: {os.path.basename(doc_path)} - {str(e)}")
+        end_time = datetime.now()
+        duration = int((end_time - start_time).total_seconds() * 1000)
+        perf_model.add_log(task_id, 'format', duration, None)
+        if failed_files:
+            task_model.update_status(task_id, 'failed', f"失败文件数: {len(failed_files)}")
+        else:
+            task_model.update_status(task_id, 'success', "全部处理成功")
+        log_model.add_log(task_id, 'info', f"处理完成，成功: {success_count}，失败: {len(failed_files)}")
         return {
             'total': total_files,
             'success': success_count,

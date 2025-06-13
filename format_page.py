@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QFontDatabase
 from formatter import DocumentFormatter
+from database.models import FormatTemplate
 import json
 import os
 
@@ -301,13 +302,14 @@ class TemplateDialog(QDialog):
         self.accept()
 
 class FormatPage(QWidget):
-    def __init__(self, back_to_main, show_manual, show_instruction_once):
+    def __init__(self, back_to_main, show_manual, show_instruction_once, user_id):
         super().__init__()
         self._shown = False
         self.show_instruction_once = show_instruction_once
-        self.formatter = DocumentFormatter()
+        self.user_id = user_id
         self.selected_files = []
         self.init_ui(back_to_main, show_manual)
+        self.refresh_templates()
         
     def init_ui(self, back_to_main, show_manual):
         layout = QVBoxLayout()
@@ -358,7 +360,7 @@ class FormatPage(QWidget):
         template_layout = QHBoxLayout()
         template_layout.addWidget(QLabel("选择格式模板："))
         self.template_combo = QComboBox()
-        self.template_combo.addItems(self.formatter.templates.keys())
+        self.template_combo.addItems(self.templates.keys())
         template_layout.addWidget(self.template_combo)
         
         new_template_btn = QPushButton("新建模板")
@@ -421,12 +423,20 @@ class FormatPage(QWidget):
         if d:
             self.output_edit.setText(d)
             
+    def refresh_templates(self):
+        self.template_combo.clear()
+        ft = FormatTemplate()
+        templates = ft.get_user_templates(self.user_id)
+        self.templates = {t['name']: t for t in templates}
+        self.template_combo.addItems(self.templates.keys())
+        
     def create_template(self):
         dialog = TemplateDialog(self)
         if dialog.exec():
             template = dialog.template
-            self.formatter.add_template(template['name'], template)
-            self.template_combo.addItem(template['name'])
+            ft = FormatTemplate()
+            ft.create(self.user_id, template['name'], json.dumps(template), template.get('description', ''), template.get('is_public', False))
+            self.refresh_templates()
             self.template_combo.setCurrentText(template['name'])
             
     def edit_template(self):
@@ -434,28 +444,30 @@ class FormatPage(QWidget):
         if not current:
             QMessageBox.warning(self, "警告", "请先选择一个模板！")
             return
-            
-        template = self.formatter.templates[current]
+        template_row = self.templates[current]
+        template = json.loads(template_row['config'])
         dialog = TemplateDialog(self, template)
         if dialog.exec():
-            template = dialog.template
-            self.formatter.delete_template(current)
-            self.formatter.add_template(template['name'], template)
-            self.template_combo.clear()
-            self.template_combo.addItems(self.formatter.templates.keys())
-            self.template_combo.setCurrentText(template['name'])
+            new_template = dialog.template
+            ft = FormatTemplate()
+            # 这里只做简单的删除再新建，实际可优化为update
+            ft.create(self.user_id, new_template['name'], json.dumps(new_template), new_template.get('description', ''), new_template.get('is_public', False))
+            ft.delete(template_row['id'])
+            self.refresh_templates()
+            self.template_combo.setCurrentText(new_template['name'])
             
     def delete_template(self):
         current = self.template_combo.currentText()
         if not current:
             QMessageBox.warning(self, "警告", "请先选择一个模板！")
             return
-            
+        template_row = self.templates[current]
         reply = QMessageBox.question(self, "确认", f"确定要删除模板 {current} 吗？",
                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
-            self.formatter.delete_template(current)
-            self.template_combo.removeItem(self.template_combo.currentIndex())
+            ft = FormatTemplate()
+            ft.delete(template_row['id'])
+            self.refresh_templates()
             
     def start_format(self):
         if not self.selected_files:

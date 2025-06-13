@@ -33,5 +33,40 @@
         "line_spacing": 28
       }
     }
+  },
+  "测试2": {
+    "name": "测试2",
+    "rules": {
+      "title": {
+        "type": "position",
+        "position": 0
+      },
+      "subtitle": {
+        "type": "position",
+        "position": 1
+      },
+      "body": {
+        "type": "default"
+      }
+    },
+    "formats": {
+      "title": {
+        "font": "方正小标宋简体",
+        "size": 16.0,
+        "alignment": "左对齐"
+      },
+      "subtitle": {
+        "font": "仿宋",
+        "size": 14.0,
+        "alignment": "左对齐"
+      },
+      "body": {
+        "font": "仿宋",
+        "size": 12.0,
+        "alignment": "左对齐",
+        "indent": 2.0,
+        "line_spacing": 28
+      }
+    }
   }
 }

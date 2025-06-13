@@ -71,15 +71,21 @@ python ui_main.py
 - 模板管理：支持自定义格式模板的增删改查。
 - 日志系统：详细记录每一次操作、任务进度、系统异常和性能数据。
 
-### 2. 表结构概览
-- `users`：用户信息表。
-- `user_settings`：用户个性化配置。
-- `doc_tasks`：文档处理任务。
-- `doc_files`：任务下的文件明细。
-- `format_templates`：格式模板。
-- `system_logs`：系统级操作日志。
-- `task_logs`：任务相关日志。
-- `performance_logs`：性能监控日志。
+### 2. 表结构及功能说明
+
+| 表名                | 功能简介                                                                 |
+|---------------------|--------------------------------------------------------------------------|
+| users               | 用户信息表，存储所有注册用户的基本信息（用户名、邮箱、密码哈希等）         |
+| user_settings       | 用户个性化配置表，记录每个用户的默认输出目录、默认模板、自动备份等设置      |
+| doc_tasks           | 文档处理任务表，记录每一次文档合并/格式化等批量任务的详细信息和状态         |
+| doc_files           | 文档文件表，记录每个任务下所有被处理的文档文件的明细（文件名、路径、状态等）|
+| format_templates    | 格式模板表，存储用户自定义的文档格式化模板及其配置（支持公开/私有）         |
+| system_logs         | 系统日志表，记录所有关键操作、异常、系统事件等，便于审计和问题追踪           |
+| task_logs           | 任务日志表，记录每个任务的进度、警告、错误等详细日志                       |
+| performance_logs    | 性能日志表，记录任务执行过程中的性能数据（耗时、内存等）                     |
+
+- 这些表共同构成了完整的用户、任务、规则、日志、性能等多维度数据管理体系。
+- 你可以通过SQL或代码随时查询、分析、追踪每一项数据和操作。
 
 ### 3. 日志机制
 - 所有关键数据操作（如模板、任务、规则、日志等）均自动写入`system_logs`表。
@@ -114,4 +120,119 @@ DocTask.update_status(task_id, 'success')
 
 ---
 如需自定义数据库配置，请修改`config/database.py`。
-如需扩展日志或表结构，请参考`database/models.py`和`database/init_db.py`。 
+如需扩展日志或表结构，请参考`database/models.py`和`database/init_db.py`。
+
+## 数据库系统详细介绍
+
+本项目数据库系统不仅支持常规的数据存储与管理，还具备完善的日志、事务、性能与问题追踪能力。以下为各核心环节的详细说明及操作记录查看方法：
+
+### 1. 核心表创建
+- 所有核心表（如`users`、`doc_tasks`、`format_templates`、`system_logs`等）在`database/init_db.py`中定义。
+- 启动主程序或运行`python -m database.init_db`会自动建表。
+- **查看表结构SQL**：
+  ```sql
+  SHOW CREATE TABLE users;
+  SHOW CREATE TABLE doc_tasks;
+  SHOW CREATE TABLE format_templates;
+  SHOW CREATE TABLE system_logs;
+  ```
+- **查看表创建日志**：
+  ```sql
+  SELECT * FROM information_schema.tables WHERE table_schema = 'xxwenling';
+  ```
+
+### 2. 表操作（增删改查）
+- 通过`database/models.py`的模型类进行数据操作。
+- 例如：
+  ```python
+  from database.models import User, DocTask, FormatTemplate
+  user_id = User.create_user('alice', 'alice@example.com', 'pwd')
+  DocTask.create_task(user_id, 'merge', '合并任务', '/input', '/output', None)
+  FormatTemplate.create_template(user_id, '标准模板', 'desc', True, '{}')
+  ```
+- **查看操作日志**：
+  ```sql
+  SELECT * FROM system_logs WHERE module IN ('users','doc_tasks','format_templates') ORDER BY created_at DESC;
+  ```
+
+### 3. 测试数据录入
+- 可通过`examples/db_operations.py`批量插入测试数据。
+- 运行：
+  ```bash
+  python -m examples.db_operations
+  ```
+- **查看录入结果**：
+  ```sql
+  SELECT * FROM users;
+  SELECT * FROM doc_tasks;
+  SELECT * FROM format_templates;
+  SELECT * FROM system_logs WHERE log_type='info';
+  ```
+
+### 4. 核心存储过程
+- 可在MySQL中自定义存储过程（如批量插入、批量日志写入等）。
+- 示例：
+  ```sql
+  DELIMITER //
+  CREATE PROCEDURE log_user_action(IN uid INT, IN msg TEXT)
+  BEGIN
+    INSERT INTO system_logs(user_id, log_type, module, message, created_at)
+    VALUES(uid, 'info', 'users', msg, NOW());
+  END //
+  DELIMITER ;
+  CALL log_user_action(1, '测试存储过程日志');
+  ```
+- **查看存储过程日志**：
+  ```sql
+  SELECT * FROM system_logs WHERE message LIKE '%存储过程日志%';
+  ```
+
+### 5. 事务测试案例
+- 在`database/models.py`中有事务操作示例（如任务状态变更、批量插入等）。
+- 你也可以在MySQL命令行测试：
+  ```sql
+  START TRANSACTION;
+  UPDATE doc_tasks SET status='failed' WHERE id=1;
+  ROLLBACK;
+  SELECT status FROM doc_tasks WHERE id=1; -- 应为原状态
+  ```
+- **查看事务相关日志**：
+  ```sql
+  SELECT * FROM system_logs WHERE message LIKE '%update_status%';
+  ```
+
+### 6. 典型问题处理
+- 例如外键约束失败、唯一索引冲突等。
+- 代码中会捕获异常并写入`system_logs`。
+- **查看异常日志**：
+  ```sql
+  SELECT * FROM system_logs WHERE log_type='error' OR message LIKE '%Exception%';
+  ```
+
+### 7. 性能优化对比
+- 所有核心表关键字段均有索引。
+- 可用如下SQL对比有无索引的查询性能：
+  ```sql
+  EXPLAIN SELECT * FROM doc_tasks WHERE user_id=1;
+  -- 查看是否走索引
+  SHOW INDEX FROM doc_tasks;
+  ```
+- **查看性能日志**：
+  ```sql
+  SELECT * FROM performance_logs ORDER BY created_at DESC;
+  ```
+
+### 8. 问题处理与多类型日志应用
+- 日志类型包括：info、warning、error、debug、progress、performance等。
+- 代码中所有操作均自动写入`system_logs`，并可根据类型灵活筛查。
+- **查看不同类型日志**：
+  ```sql
+  SELECT * FROM system_logs WHERE log_type='info';
+  SELECT * FROM system_logs WHERE log_type='error';
+  SELECT * FROM system_logs WHERE log_type='debug';
+  SELECT * FROM task_logs WHERE log_type='progress';
+  SELECT * FROM performance_logs;
+  ```
+
+---
+如需进一步扩展数据库功能、日志类型或性能分析，请参考`database/models.py`和`database/init_db.py`，或联系开发者获取更多示例。 
