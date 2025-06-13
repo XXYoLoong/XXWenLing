@@ -59,3 +59,59 @@ python ui_main.py
 - 建议在合并前备份原始文档
 - 格式化处理前请确保文档未被其他程序占用
 - 建议先使用小批量文档测试格式模板效果 
+
+## 数据库系统介绍
+
+本项目集成了完整的MySQL数据库系统，支持多用户、多任务、规则模板、日志等多维度数据管理。数据库设计与实现亮点如下：
+
+### 1. 数据库功能
+- 用户管理：支持用户注册、登录、配置管理。
+- 任务管理：记录文档合并、格式化等批量处理任务及其状态。
+- 文件管理：追踪每个任务下的所有文档文件。
+- 模板管理：支持自定义格式模板的增删改查。
+- 日志系统：详细记录每一次操作、任务进度、系统异常和性能数据。
+
+### 2. 表结构概览
+- `users`：用户信息表。
+- `user_settings`：用户个性化配置。
+- `doc_tasks`：文档处理任务。
+- `doc_files`：任务下的文件明细。
+- `format_templates`：格式模板。
+- `system_logs`：系统级操作日志。
+- `task_logs`：任务相关日志。
+- `performance_logs`：性能监控日志。
+
+### 3. 日志机制
+- 所有关键数据操作（如模板、任务、规则、日志等）均自动写入`system_logs`表。
+- 日志内容包括：操作用户、操作类型（如create/update/delete）、目标表、记录ID、详细内容、时间戳等。
+- 便于后续审计、问题追踪和数据恢复。
+
+### 4. 代码集成方式
+- 所有数据库操作均通过`database/models.py`中的模型类进行。
+- 每个模型方法（如`create_user`、`create_task`、`update_status`、`create_template`等）在执行时自动调用`OperationLogger.log`写入操作日志。
+
+#### 代码示例：
+```python
+from database.models import User, OperationLogger
+
+# 创建用户并自动记录日志
+user_id = User.create_user('testuser', 'test@example.com', 'hashed_pwd')
+# 日志会自动写入system_logs表
+
+# 更新任务状态
+DocTask.update_status(task_id, 'success')
+# 日志会自动写入system_logs表
+```
+
+### 5. 数据库初始化与自动同步
+- 程序启动时自动调用`init_database()`，如未初始化则自动建库建表。
+- 所有数据操作、规则录入、任务、日志等均实时同步到数据库。
+
+### 6. 性能与安全
+- 关键字段均有索引，支持高并发查询。
+- 所有外键均有级联约束，保证数据一致性。
+- 日志表支持追溯所有历史操作。
+
+---
+如需自定义数据库配置，请修改`config/database.py`。
+如需扩展日志或表结构，请参考`database/models.py`和`database/init_db.py`。 
