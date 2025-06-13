@@ -5,46 +5,15 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 import json
 import re
 from docx.oxml.ns import qn
-from database.models import DocTask, TaskLog, PerformanceLog
+from database.models import DocTask, TaskLog, PerformanceLog, FormatTemplate
 from datetime import datetime
 
 class DocumentFormatter:
     def __init__(self, user_id=None):
         self.user_id = user_id
-        self.templates = {}
         self.current_template = None
-        self.load_templates()
         
-    def load_templates(self):
-        """加载保存的模板"""
-        template_path = os.path.join(os.path.dirname(__file__), 'templates', 'format_templates.json')
-        if os.path.exists(template_path):
-            with open(template_path, 'r', encoding='utf-8') as f:
-                self.templates = json.load(f)
-                
-    def save_templates(self):
-        """保存模板到文件"""
-        template_dir = os.path.join(os.path.dirname(__file__), 'templates')
-        if not os.path.exists(template_dir):
-            os.makedirs(template_dir)
-        template_path = os.path.join(template_dir, 'format_templates.json')
-        with open(template_path, 'w', encoding='utf-8') as f:
-            json.dump(self.templates, f, ensure_ascii=False, indent=2)
-            
-    def add_template(self, name, template):
-        """添加新模板"""
-        self.templates[name] = template
-        self.save_templates()
-        
-    def delete_template(self, name):
-        """删除模板"""
-        if name in self.templates:
-            del self.templates[name]
-            self.save_templates()
-            
     def set_current_template(self, name):
-        """设置当前使用的模板"""
-        from database.models import FormatTemplate
         ft = FormatTemplate()
         templates = ft.get_user_templates(self.user_id)
         for t in templates:
@@ -198,11 +167,9 @@ class DocumentFormatter:
         }
 
     def format_files(self, file_list, output_dir=None, progress_callback=None, status_callback=None):
-        """批量处理指定文件列表"""
         total_files = len(file_list)
         success_count = 0
         failed_files = []
-        # 创建数据库任务
         task_model = DocTask()
         task_name = f"批量格式化_{datetime.now().strftime('%Y%m%d%H%M%S')}"
         output_path = output_dir or ''
@@ -220,20 +187,20 @@ class DocumentFormatter:
                     progress_callback(int((i + 1) / total_files * 100))
                 if status_callback:
                     status_callback(f"正在处理: {os.path.basename(doc_path)}")
-                log_model.add_log(task_id, 'progress', f"正在处理: {os.path.basename(doc_path)}")
+                log_model.add_log(task_id, 'progress', f"正在处理: {os.path.basename(doc_path)}", user_id=self.user_id)
                 self.format_document(doc_path, output_path)
                 success_count += 1
             except Exception as e:
                 failed_files.append((os.path.basename(doc_path), str(e)))
-                log_model.add_log(task_id, 'error', f"处理失败: {os.path.basename(doc_path)} - {str(e)}")
+                log_model.add_log(task_id, 'error', f"处理失败: {os.path.basename(doc_path)} - {str(e)}", user_id=self.user_id)
         end_time = datetime.now()
         duration = int((end_time - start_time).total_seconds() * 1000)
-        perf_model.add_log(task_id, 'format', duration, None)
+        perf_model.add_log(task_id, 'format', duration, None, user_id=self.user_id)
         if failed_files:
-            task_model.update_status(task_id, 'failed', f"失败文件数: {len(failed_files)}")
+            task_model.update_status(task_id, 'failed', f"失败文件数: {len(failed_files)}", user_id=self.user_id)
         else:
-            task_model.update_status(task_id, 'success', "全部处理成功")
-        log_model.add_log(task_id, 'info', f"处理完成，成功: {success_count}，失败: {len(failed_files)}")
+            task_model.update_status(task_id, 'success', "全部处理成功", user_id=self.user_id)
+        log_model.add_log(task_id, 'info', f"处理完成，成功: {success_count}，失败: {len(failed_files)}", user_id=self.user_id)
         return {
             'total': total_files,
             'success': success_count,

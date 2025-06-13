@@ -1,6 +1,6 @@
 import os
 from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QLabel, QPushButton, QFileDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QProgressBar, QMessageBox, QDialog, QCheckBox, QStackedWidget, QStatusBar
+    QMainWindow, QWidget, QLabel, QPushButton, QFileDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QProgressBar, QMessageBox, QDialog, QCheckBox, QStackedWidget, QStatusBar, QComboBox
 )
 from PyQt6.QtGui import QPixmap, QFont, QDesktopServices
 from PyQt6.QtCore import Qt, QUrl
@@ -287,126 +287,6 @@ class MergePage(QWidget):
         if not self._shown:
             self._shown = True
             self.show_instruction_once()
-
-class FormatPage(QWidget):
-    def __init__(self, back_to_main, show_manual, show_instruction_once, user_id):
-        super().__init__()
-        self._shown = False
-        self.show_instruction_once = show_instruction_once
-        self.user_id = user_id
-        self.selected_files = []
-        self.init_ui(back_to_main, show_manual)
-        self.refresh_templates()
-    def init_ui(self, back_to_main, show_manual):
-        layout = QVBoxLayout()
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        top_layout = QHBoxLayout()
-        logo = QLabel()
-        logo.setPixmap(QPixmap(LOGO_PATH).scaled(40, 40, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-        top_layout.addWidget(logo)
-        title = QLabel("文档格式化")
-        title.setFont(QFont("微软雅黑", 20, QFont.Weight.Bold))
-        title.setStyleSheet("color:#2563eb; letter-spacing:4px;")
-        top_layout.addWidget(title)
-        top_layout.addStretch()
-        back_btn = QPushButton("返回主页")
-        back_btn.setStyleSheet("border-radius:14px; background:#43a047; color:white; font-size:15px; padding:6px 18px;")
-        back_btn.clicked.connect(back_to_main)
-        top_layout.addWidget(back_btn)
-        manual_btn = QPushButton("使用手册")
-        manual_btn.setStyleSheet("border-radius:14px; background:#43a047; color:white; font-size:15px; padding:6px 18px;")
-        manual_btn.clicked.connect(show_manual)
-        top_layout.addWidget(manual_btn)
-        layout.addLayout(top_layout)
-        layout.addSpacing(18)
-        self.dir_edit = QLineEdit()
-        self.dir_edit.setPlaceholderText("请选择文档目录")
-        self.dir_edit.setReadOnly(True)
-        dir_btn = QPushButton("选择目录")
-        dir_btn.clicked.connect(self.choose_dir)
-        dir_layout = QHBoxLayout()
-        dir_layout.addWidget(self.dir_edit)
-        dir_layout.addWidget(dir_btn)
-        layout.addLayout(dir_layout)
-        self.name_edit = QLineEdit()
-        self.name_edit.setPlaceholderText("请输入合成后文件名（不含扩展名）")
-        layout.addWidget(self.name_edit)
-        self.save_edit = QLineEdit()
-        self.save_edit.setPlaceholderText("请选择保存目标目录（可选）")
-        self.save_edit.setReadOnly(True)
-        save_btn = QPushButton("选择保存目录")
-        save_btn.clicked.connect(self.choose_save_dir)
-        save_layout = QHBoxLayout()
-        save_layout.addWidget(self.save_edit)
-        save_layout.addWidget(save_btn)
-        layout.addLayout(save_layout)
-        layout.addSpacing(18)
-        self.format_btn = QPushButton("开始处理")
-        self.format_btn.clicked.connect(self.start_format)
-        self.format_btn.setFixedHeight(40)
-        self.format_btn.setStyleSheet("border-radius:20px; background:#2563eb; color:white; font-size:18px;")
-        layout.addWidget(self.format_btn)
-        self.progress = QProgressBar()
-        self.progress.setValue(0)
-        self.progress.setFixedHeight(18)
-        self.progress.setStyleSheet("QProgressBar{border-radius:9px; background:#eee;} QProgressBar::chunk{background:#2563eb; border-radius:9px;}")
-        layout.addWidget(self.progress)
-        self.status = QLabel("")
-        self.status.setStyleSheet("color:#ff9800; font-size:14px;")
-        self.status.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.status)
-        self.log = QLabel("")
-        self.log.setStyleSheet("color:#888; font-size:12px;")
-        layout.addWidget(self.log)
-        layout.addStretch()
-        self.setLayout(layout)
-    def choose_dir(self):
-        d = QFileDialog.getExistingDirectory(self, "选择文档目录")
-        if d:
-            self.dir_edit.setText(d)
-    def choose_save_dir(self):
-        d = QFileDialog.getExistingDirectory(self, "选择保存目标目录")
-        if d:
-            self.save_edit.setText(d)
-    def start_format(self):
-        if not self.selected_files:
-            QMessageBox.warning(self, "警告", "请选择要处理的文档文件！")
-            return
-        template_name = self.template_combo.currentText()
-        if not template_name:
-            QMessageBox.warning(self, "警告", "请选择格式模板！")
-            return
-        from formatter import DocumentFormatter
-        formatter = DocumentFormatter(user_id=self.user_id)
-        if not formatter.set_current_template(template_name):
-            QMessageBox.warning(self, "警告", "模板设置失败！")
-            return
-        output_dir = self.output_edit.text().strip() or None
-        try:
-            self.format_btn.setEnabled(False)
-            self.progress.setValue(0)
-            self.status.setText("正在处理...")
-            self.log.clear()
-            result = formatter.format_files(
-                self.selected_files,
-                output_dir,
-                self.progress.setValue,
-                self.status.setText
-            )
-            self.log.append(f"处理完成！\n")
-            self.log.append(f"总文件数：{result['total']}\n")
-            self.log.append(f"成功处理：{result['success']}\n")
-            if result['failed']:
-                self.log.append("处理失败的文件：\n")
-                for file, error in result['failed']:
-                    self.log.append(f"- {file}: {error}\n")
-            QMessageBox.information(self, "完成", "文档处理完成！")
-        except Exception as e:
-            QMessageBox.critical(self, "错误", f"处理过程中出现错误：\n{str(e)}")
-        finally:
-            self.format_btn.setEnabled(True)
-            self.progress.setValue(0)
-            self.status.setText("")
 
 class MainWindow(QMainWindow):
     def __init__(self, user_id):

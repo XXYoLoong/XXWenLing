@@ -308,6 +308,7 @@ class FormatPage(QWidget):
         self.show_instruction_once = show_instruction_once
         self.user_id = user_id
         self.selected_files = []
+        self.templates = {}
         self.init_ui(back_to_main, show_manual)
         self.refresh_templates()
         
@@ -356,25 +357,23 @@ class FormatPage(QWidget):
         output_layout.addWidget(output_btn)
         layout.addLayout(output_layout)
         
-        # 模板选择
+        # 模板选择和管理按钮
         template_layout = QHBoxLayout()
         template_layout.addWidget(QLabel("选择格式模板："))
         self.template_combo = QComboBox()
-        self.template_combo.addItems(self.templates.keys())
         template_layout.addWidget(self.template_combo)
-        
         new_template_btn = QPushButton("新建模板")
+        new_template_btn.setStyleSheet("border-radius:10px; background:#2563eb; color:white; font-size:14px; padding:4px 12px;")
         new_template_btn.clicked.connect(self.create_template)
         template_layout.addWidget(new_template_btn)
-        
         edit_template_btn = QPushButton("编辑模板")
+        edit_template_btn.setStyleSheet("border-radius:10px; background:#43a047; color:white; font-size:14px; padding:4px 12px;")
         edit_template_btn.clicked.connect(self.edit_template)
         template_layout.addWidget(edit_template_btn)
-        
         delete_template_btn = QPushButton("删除模板")
+        delete_template_btn.setStyleSheet("border-radius:10px; background:#ff9800; color:white; font-size:14px; padding:4px 12px;")
         delete_template_btn.clicked.connect(self.delete_template)
         template_layout.addWidget(delete_template_btn)
-        
         layout.addLayout(template_layout)
         
         # 处理选项
@@ -450,7 +449,6 @@ class FormatPage(QWidget):
         if dialog.exec():
             new_template = dialog.template
             ft = FormatTemplate()
-            # 这里只做简单的删除再新建，实际可优化为update
             ft.create(self.user_id, new_template['name'], json.dumps(new_template), new_template.get('description', ''), new_template.get('is_public', False))
             ft.delete(template_row['id'])
             self.refresh_templates()
